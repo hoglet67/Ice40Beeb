@@ -1,0 +1,14 @@
+*~
+#*
+not_in_git/
+# IceStorm files
+beeb.bin
+beeb.blif
+beeb.log
+beeb.txt
+# Simulation files
+dump.vcd
+a.out
+target/blackice/iceboot/output/
+target/blackice/iceboot/icebootbeeb.raw
+xilinx/
