@@ -39,6 +39,8 @@
 //
 // Revision list
 //
+//        dmb: ier bit 7 should read back as '1'
+//        dmb: Fixes to sr_do_shift change that broke MMFS on the Beeb (SR mode 
 // version 005 Many fixes to all areas, VIA now passes all VICE tests
 // version 004 fixes to PB7 T1 control and Mode 0 Shift Register operation
 // version 003 fix reset of T1/T2 IFR flags if T1/T2 is reload via reg5/reg9 from wolfgang (WoS)
@@ -394,7 +396,7 @@ module m6522
       r_ira_hs <= 1'b0;
       O_DATA <= 8'h00; // default
 
-      orb = (r_irb & !r_ddrb) | (r_orb & r_ddrb);
+      orb = (r_irb & ~r_ddrb) | (r_orb & r_ddrb);
 
       // If PB7 under timer control, assign value from timer
       if (t1_pb7_en_d == 1'b1) begin
@@ -407,7 +409,7 @@ module m6522
                O_DATA <= orb; r_irb_hs <= 1'b1;
             end
             4'h1: begin
-               O_DATA <= (r_ira & !r_ddra) | (r_ora & r_ddra);
+               O_DATA <= (r_ira & ~r_ddra) | (r_ora & r_ddra);
                r_ira_hs <= 1'b1;
             end
             4'h2: begin
@@ -450,7 +452,8 @@ module m6522
                O_DATA <= r_ifr;
             end
             4'hE: begin
-               O_DATA <= (1'b0 & r_ier);
+               // DMB: ier bit 7 should read back as '1'
+               O_DATA <= {1'b1, r_ier};
             end
             4'hF: begin
                O_DATA <= r_ira;
@@ -965,7 +968,9 @@ module m6522
                      if (sr_strobe_rising) begin
                         sr_do_shift <= 1'b1;
                         r_sr[0] <= I_CB2;
-                     end else if (sr_do_shift) begin
+                     // DMB: Added sr_stroble_falling to avoid premature shift
+                     // (fixes issue with MMFS on the Beeb in SR mode 0)
+                     end else if (sr_do_shift & sr_strobe_falling) begin
                         sr_do_shift <= 1'b0;
                         r_sr[7:1] <= r_sr[6:0];
                      end
@@ -977,7 +982,9 @@ module m6522
                      if (sr_strobe_falling) begin
                         sr_out <= r_sr[7];
                         sr_do_shift <= 1'b1;
-                     end else if (sr_do_shift) begin
+                     // DMB: Added sr_stroble_falling to avoid premature shift
+                     // (fixes issue with MMFS on the Beeb in SR mode 0)
+                     end else if (sr_do_shift & sr_strobe_rising) begin
                         sr_do_shift <= 1'b0;
                         r_sr <= r_sr[6:0] & r_sr[7];
                      end
@@ -1042,7 +1049,7 @@ module m6522
                end
                else begin
                   // clear
-                  r_ier <= r_ier & !load_data[6:0];
+                  r_ier <= r_ier & ~load_data[6:0];
                end
             end
          end
