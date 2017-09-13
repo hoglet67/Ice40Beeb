@@ -52,7 +52,12 @@ module bbc(
    input [7:0]   joy1_axis1,
 
    // boot settings
-   input [7:0]   DIP_SWITCH
+   input [7:0]   DIP_SWITCH,
+
+   // LEDs
+   output        caps_lock_led_n,
+   output        shift_lock_led_n,
+   output        break_led_n
 );
 
 // let sdram state machine synchronize to cpu
@@ -110,13 +115,15 @@ wire    cpu_abort_n = 1'b 1;
 wire    cpu_nmi_n  = 1'b 1;
 wire    cpu_so_n = 1'b 1;
 wire    cpu_irq_n;
-wire    cpu_r_nw;
-wire    cpu_we;
+reg     cpu_r_nw;
+wire    cpu_we_next;
 
-wire    [15:0] cpu_a;
+reg    [15:0] cpu_a;
+wire    [15:0] cpu_a_next;
 wire    [7:0] cpu_di;
-reg     [7:0] cpu_di_r;
-wire    [7:0] cpu_do;
+//reg     [7:0] cpu_di_r;
+reg    [7:0] cpu_do;
+wire    [7:0] cpu_do_next;
 
 //  CRTC signals
 wire    crtc_clken;
@@ -167,8 +174,6 @@ wire    speech_read_n;
 wire    speech_write_n;
 wire    keyb_enable_n;
 wire    [1:0] disp_addr_offs;
-wire    caps_lock_led_n;
-wire    shift_lock_led_n;
 
 //  Sound generator
 wire    sound_ready;
@@ -177,6 +182,7 @@ wire    [7:0] sound_ao;
 
 //  System VIA signals
 wire    [7:0] sys_via_do;
+//reg    [7:0] sys_via_do_r;
 wire    sys_via_do_oe_n;
 wire    sys_via_irq_n;
 wire     sys_via_ca1_in;
@@ -198,6 +204,7 @@ wire    [7:0] sys_via_pb_oe_n;
 
 //  User VIA signals
 wire    [7:0] user_via_do;
+//reg    [7:0] user_via_do_r;
 wire    user_via_do_oe_n;
 wire    user_via_irq_n;
 reg     user_via_ca1_in;
@@ -281,22 +288,43 @@ input NMI;              // non-maskable interrupt request
 input RDY;              // Ready signal. Pauses CPU when RDY=0
 */
 
-cpu CPU (
-   .clk  ( CLK32M_I  ),
-   .reset   ( ~reset_n  ),
-
-    .IRQ ( ~cpu_irq_n   ),
-   .NMI  ( ~cpu_nmi_n   ),
-
-    .WE     ( cpu_we       ),
-   .AB      ( cpu_a ),
-   .DI      ( cpu_di_r     ),
-   .DO      ( cpu_do    ),
-   .RDY  ( cpu_clken     )
+cpu CPU
+  (
+   .clk    ( CLK32M_I     ),
+   .reset  ( ~reset_n     ),   
+   .IRQ    ( ~cpu_irq_n   ),
+   .NMI    ( ~cpu_nmi_n   ),
+   .WE     ( cpu_we_next  ),
+   .AB     ( cpu_a_next   ),
+   .DI     ( cpu_di       ),
+   .DO     ( cpu_do_next  ),
+   .RDY    ( cpu_clken    )
 );
 
-assign cpu_r_nw = ~cpu_we;
+//assign cpu_r_nw = ~cpu_we;
 
+   // The outputs of Arlets's 6502 core need registing
+   always @(posedge CLK32M_I)
+     begin
+        if (cpu_clken)
+          begin
+             cpu_a    <= cpu_a_next;
+             cpu_do   <= cpu_do_next;
+             cpu_r_nw <= ~cpu_we_next;
+          end
+     end
+
+   
+   // This is needed as in v003 of the 6522 data out is only valid while I_P2_H is asserted
+   // I_P2_H is driven from mhz1_clken
+//   always @(posedge CLK32M_I)
+//     begin
+//        if (mhz1_clken)
+//          begin
+//             user_via_do_r <= user_via_do;
+//             sys_via_do_r  <= sys_via_do;
+//          end
+//     end
 
 m6522 SYS_VIA (
      //  System VIA is reset by power on reset only
@@ -519,10 +547,10 @@ always @(posedge CLK32M_I) begin
 
       end
 
-        // retard DI by one cpu clock cycle
-        if (cpu_clken === 1'b1) begin
-            cpu_di_r <= cpu_di;
-        end
+      //  // retard DI by one cpu clock cycle
+      //  if (cpu_clken === 1'b1) begin
+      //      cpu_di_r <= cpu_di;
+      //  end
 
    end
 end
@@ -608,7 +636,8 @@ assign keyb_enable_n = ic32[3];
 assign disp_addr_offs = ic32[5:4];
 assign caps_lock_led_n = ic32[6];
 assign shift_lock_led_n = ic32[7];
-
+assign break_led_n = ~keyb_break;
+                    
 //  CPU data bus mux and interrupts
 wire himem_enable = rom_enable && (romsel[3] === 1'b0);
 

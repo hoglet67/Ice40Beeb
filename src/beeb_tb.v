@@ -3,9 +3,9 @@
 module beeb_tb();
 
    // This is used to simulate the ARM downloaded the initial set of ROM images
-   parameter   BOOT_INIT_FILE    = "../mem/boot_c000_ffff.mem";
+   parameter   BOOT_INIT_FILE    = "../mem/boot_c000_17fff.mem";
    parameter   BOOT_START_ADDR   = 'h0C000;
-   parameter   BOOT_END_ADDR     = 'h0FFFF;
+   parameter   BOOT_END_ADDR     = 'h17FFF;
 
    reg [23:0]  boot_start = BOOT_START_ADDR;
    reg [23:0]  boot_end   = BOOT_END_ADDR;
@@ -95,7 +95,10 @@ beeb
 
    initial begin
       $dumpvars;
-
+      // Initialize, otherwise it messes up when probing for roms
+      for (i = 0; i < 262144; i = i + 1)
+        mem[i] = 0;
+      
       // initialize 10MHz clock
       clk = 1'b0;
       // external reset should not be required, so don't simulate it
@@ -129,21 +132,26 @@ beeb
         spi_send_byte(boot[i]);
 
       #1000 arm_ss_r = 1'b1;
+
+      // Patch the memory test
+
+      mem[18'hd9fb] = 8'ha2;
+      mem[18'hd9fc] = 8'h80;
+      
       #1000 booting  = 1'b0;
 
+
+      
       #100000000 ; // 100ms, enough for a few video frames
 
       // Attempt to dump the screen memory in ASCII
-      for (row = 0; row < 16; row = row + 1)
+      for (row = 0; row < 25; row = row + 1)
         begin
-           for (col = 0; col < 32; col = col + 1)
+           for (col = 0; col < 40; col = col + 1)
              begin
-                i = 'h8000 + 32 * row + col;
+                i = 'h7c00 + 40 * row + col;
                 i = mem[i];
-                i = i & 127;
-                if (i < 32)
-                  i = i + 64;
-                else if (i >= 64)
+                if ((i < 32) || (i > 127))
                   i = 'h2e;
                 $write("%c", i);
              end

@@ -113,6 +113,10 @@ module beeb
    // LEDs
    // ===============================================================
 
+   wire caps_lock_led_n;
+   wire shift_lock_led_n;
+   wire break_led_n;
+      
    reg        led1;
    reg        led2;
    reg        led3;
@@ -120,10 +124,10 @@ module beeb
 
    always @(posedge clock32)
      begin
-        led1 <= 1'b0;       // blue
-        led2 <= 1'b0;       // green
-        led3 <= !sw4;       // yellow
-        led4 <= reset;      // red
+        led1 <= !caps_lock_led_n;  // blue
+        led2 <= !shift_lock_led_n; // green
+        led3 <= !break_led_n;      // yellow
+        led4 <= !sw4;              // red
      end
 
    // ===============================================================
@@ -141,7 +145,10 @@ module beeb
    wire        beeb_RAMCS_b = 1'b0;
    wire        beeb_RAMOE_b = vid_clken ? 1'b0 : beeb_WE;
    wire        beeb_RAMWE_b = vid_clken ? 1'b1 : (!beeb_WE) | wegate_b;
-   wire [17:0] beeb_RAMA    = vid_clken ? { 3'b000, vid_addr } : (beeb_A[15:14] == 2'b10) ? { 1'b0, beeb_RomSel[2:0], beeb_A[13:0]} : { 2'b00, beeb_A};
+
+   // This is not quite right, as it makes lower memory visible as roms 0..3 but that should be harmless
+   wire [17:0] beeb_RAMA    = vid_clken ? { 3'b000, vid_addr } : (beeb_A[15:14] == 2'b10) ? { beeb_RomSel[3:0], beeb_A[13:0]} : { 2'b00, beeb_A};
+
    wire [7:0]  beeb_RAMDin;
    wire [7:0]  beeb_RAMDout = data_pins_in;
 
@@ -298,10 +305,14 @@ module beeb
    wire       r;
    wire       g;
    wire       b;
+   wire       hs;
+   wire       vs;
 
    assign red   = {r, r, r, r};
    assign green = {g, g, g, g};
    assign blue  = {b, b, b, b};
+   assign hsync = !(vs | hs);
+   assign vsync = 1'b0;
 
    // TODO: Add scan convertor
 
@@ -316,8 +327,8 @@ module beeb
       .CLK24M_I(clock24),
       .RESET_I(reset),
 
-      .HSYNC(hsync),
-      .VSYNC(vsync),
+      .HSYNC(hs),
+      .VSYNC(vs),
 
       .VIDEO_CLKEN(vid_clken),
       .VIDEO_R(r),
@@ -360,7 +371,12 @@ module beeb
       .joy1_axis1(8'h00),
 
       // boot settings
-      .DIP_SWITCH(8'b11111111)
+      .DIP_SWITCH(8'b00000000),
+
+      // LEDs
+      .caps_lock_led_n(caps_lock_led_n),
+      .shift_lock_led_n(shift_lock_led_n),
+      .break_led_n(break_led_n)      
       );
 
 endmodule
