@@ -48,7 +48,6 @@
 module saa5050 (
            CLOCK,
            CLKEN,
-//           PIXCLKEN,
            nRESET,
            DI_CLOCK,
            DI_CLKEN,
@@ -65,7 +64,6 @@ module saa5050 (
 
 input CLOCK;
 input CLKEN;
-//input PIXCLKEN;
 input nRESET;
 input DI_CLOCK;
 input DI_CLKEN;
@@ -98,11 +96,6 @@ wire [11: 0] rom_address1;
 wire [11: 0] rom_address2;
 wire [7: 0] rom_data1;
 wire [7: 0] rom_data2;
-//wire    [3:0] line_addr_cmp;
-wire    [3:0] line_addr_p1;
-wire    [3:0] line_addr_m1;
-//wire    [11:0] rom_address_cmp;
-//wire    [7:0] rom_data_cmp;
 //  Delayed display enable derived from LOSE by delaying for one character
 reg disp_enable;
 
@@ -124,11 +117,7 @@ reg [3: 0] pixel_counter;
 reg [5: 0] flash_counter;
 
 //  Output shift register
-//reg     odd_pixel;
-//reg     shift_reg_last;
 reg [11: 0] shift_reg;
-//reg     shift_reg_cmp_last;
-//reg     [5:0] shift_reg_cmp;
 
 //  Flash mask
 wire flash;
@@ -198,16 +187,6 @@ assign line_addr = double_high === 1'b 0 ? line_counter :
        {1'b 0, line_counter[3 : 1]} + 4'd5;
 assign rom_address1 = double_high === 1'b 0 & double_high2 === 1'b 1 ? {12{1'b 0}} :
        {gfx, code, line_addr};
-assign line_addr_p1 = double_high === 1'b 0 ? line_counter + 1 :
-       double_high2 === 1'b 0 ? {1'b 0, line_counter[3:1]} + 1 :
-       {1'b 0, line_counter[3:1]} + 1 + 5;
-assign line_addr_m1 = double_high === 1'b 0 ? line_counter - 1 :
-       double_high2 === 1'b 0 ? {1'b 0, line_counter[3:1]} - 1 :
-       {1'b 0, line_counter[3:1]} - 1 + 5;
-//assign line_addr_cmp = CRS === 1'b 1 ? line_addr_p1 :
-//       line_addr_m1;
-//assign rom_address_cmp = double_high === 1'b 0 & double_high2 === 1'b 1 ? {12{1'b 0}} :
-//       {gfx, code, line_addr_cmp};
 
 //reference row for character rounding
 assign rom_address2 = ((!double_high  & CRS) | (double_high &  line_counter[0])) ? rom_address1 + 1'b1 : rom_address1 - 1'b1;
@@ -331,7 +310,6 @@ always @(posedge CLOCK) begin
             //  Load the shift register with the ROM bit pattern
             //  at the start of each character while disp_enable is asserted.
             shift_reg <= a;
-//            shift_reg_cmp <= rom_data_cmp[5:0];
 
             //  If bit 7 of the ROM data is set then this is a graphics
             //  character and separated/hold graphics modes apply.
@@ -357,22 +335,8 @@ always @(posedge CLOCK) begin
 
             shift_reg <= a;
            
-//         if (rom_data_cmp[7] === 1'b 1) begin
-//                //  Apply a mask for separated graphics mode
-//                if (gfx_sep === 1'b 1) begin
-//                    shift_reg_cmp[5] <= 1'b 0;
-//                    shift_reg_cmp[2] <= 1'b 0;
-//                    if (line_counter === 1 | line_counter === 5 |
-//                            line_counter === 8) begin
-//                        shift_reg_cmp <= {6{1'b 0}};
-//                    end
-//                end
-//            end            //  Pump the shift register
         end else begin
-//         shift_reg_last <= shift_reg[11];
             shift_reg <= {shift_reg[10: 0], 1'b 0};
-//         shift_reg_cmp_last <= shift_reg_cmp[5];
-//            shift_reg_cmp <= {shift_reg_cmp[4:0], 1'b 0};
         end
     end
 end
@@ -449,9 +413,6 @@ always @(posedge CLOCK) begin
 end
 
 //  Output pixel calculation.
-//wire  pixel =  double_high === 1'b 1 ?  shift_reg[5] & ~(flash & is_flash | conceal) :
-//            odd_pixel   === 1'b 0 ?  (shift_reg[5] | shift_reg_cmp[5] & shift_reg[4] & ~shift_reg_cmp[4]) &  ~(flash & is_flash | conceal) :
-//                               (shift_reg[5] | shift_reg_cmp[5] & shift_reg_last & ~shift_reg_cmp_last) & ~(flash & is_flash | conceal);
  wire pixel = shift_reg[11] & ~((flash & is_flash) | conceal);
    
    
@@ -463,12 +424,10 @@ always @(posedge CLOCK) begin
         G <= 1'b 0;
         B <= 1'b 0;
 
-//    end else if (PIXCLKEN === 1'b 1 ) begin
     end else if (CLKEN === 1'b 1 ) begin
 
         //  Generate mono output
         Y <= pixel;
-//        odd_pixel <= ~odd_pixel;
 
         //  Generate colour output
         if (pixel === 1'b 1) begin
