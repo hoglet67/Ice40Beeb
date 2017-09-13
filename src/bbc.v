@@ -466,18 +466,17 @@ mc6845 CRTC (
     .INTERLACE(crtc_interlace)
 );
 
-`ifdef xxx
-sn76489 SOUND (
-       .clk    ( CLK32M_I     ),
-       .clk_en ( mhz4_clken   ),
-       .reset     ( !reset_n      ),
-       .ce_n      ( 1'b 0        ),
-       .we_n      ( sound_enable_n),
-       .ready     ( sound_ready  ),
-       .d         ( sound_di     ),
-       .audio_out ( sound_ao     )
+sn76489 #(8) SOUND
+  (
+   .clk       ( CLK32M_I       ),
+   .clk_en    ( mhz4_clken     ),
+   .reset     ( !reset_n       ),
+   .ce_n      ( 1'b 0          ),
+   .we_n      ( sound_enable_n ),
+   .ready     ( sound_ready    ),
+   .d         ( sound_di       ),
+   .audio_out ( sound_ao       )
 );
-`endif
 
 
 vidproc VIDEO_ULA (
