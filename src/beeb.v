@@ -205,7 +205,7 @@ module beeb
       .D_IN_0({arm_ss_int, arm_mosi_int, arm_sclk_int})
       );
 `else
-   assign {arm_ss, arm_mosi, arm_sclk} = booting ? 3'bZ : {led1, led2, led4};
+   assign {arm_ss, arm_mosi, arm_sclk} = booting ? 3'bZ : {led1, led3, led4};
    assign {arm_ss_int, arm_mosi_int, arm_sclk_int} = {arm_ss, arm_mosi, arm_sclk};
 `endif
 

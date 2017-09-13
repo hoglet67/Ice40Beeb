@@ -162,6 +162,7 @@ wire    keyb_int;
 wire    keyb_break;
 
 // internal reset signals
+wire hard_reset_n = ~RESET_I;  
 wire reset_n = ~RESET_I & ~keyb_break;
 
 //  IC32 latch on System VIA
@@ -231,7 +232,7 @@ clocks CLOCKS(
 
    .clk_32m       ( CLK32M_I  ), // master clock
    .clk_24m       ( CLK24M_I  ),
-   .reset_n       ( reset_n   ),
+   .reset_n       ( hard_reset_n   ),
 
    .vid_clken     ( VIDEO_CLKEN     ),
 
@@ -336,7 +337,7 @@ m6522 SYS_VIA (
     .I_CS2_L(1'b 0), // nCS2(1'b 0),
     .O_IRQ_L(sys_via_irq_n),
     .I_P2_H(mhz1_clken),
-    .RESET_L(reset_n),
+    .RESET_L(hard_reset_n),
 
     .I_CA1(sys_via_ca1_in),
     .I_CA2(sys_via_ca2_in),
@@ -368,7 +369,7 @@ m6522 USER_VIA (
     .I_CS2_L(1'b 0), // nCS2(1'b 0),
     .O_IRQ_L(user_via_irq_n),
     .I_P2_H(mhz1_clken),
-    .RESET_L(reset_n),
+    .RESET_L(hard_reset_n),
 
     .I_CA1(user_via_ca1_in),
     .I_CA2(user_via_ca2_in),
@@ -413,7 +414,7 @@ m6522 USER_VIA (
 keyboard KEYB (
 
     .CLOCK        ( CLK32M_I     ),
-    .nRESET       ( reset_n      ),
+    .nRESET       ( hard_reset_n      ),
     .CLKEN_1MHZ   ( mhz1_clken   ),
     .PS2_CLK      ( PS2_CLK      ),
     .PS2_DATA     ( PS2_DAT      ),
@@ -448,7 +449,7 @@ mc6845 CRTC (
     .CLOCK(CLK32M_I),
     .CLKEN(crtc_clken),
     .CLKEN_ADR(crtc_clken_adr),
-    .nRESET(reset_n),
+    .nRESET(hard_reset_n),
     .ENABLE(crtc_enable),
     .R_nW(cpu_r_nw),
     .RS(cpu_a[0]),
@@ -482,7 +483,7 @@ sn76489 SOUND (
 vidproc VIDEO_ULA (
       .CLOCK(CLK32M_I),
       .CLKEN(VIDEO_CLKEN),
-      .nRESET(reset_n),
+      .nRESET(hard_reset_n),
       .CLKEN_CRTC(crtc_clken),
       .CLKEN_CRTC_ADR(crtc_clken_adr),
       .ENABLE(vidproc_enable),
@@ -508,7 +509,7 @@ saa5050 TELETEXT (
        .CLOCK     ( CLK24M_I     ),
        .CLKEN     ( ttxt_clken   ),
        .PIXCLKEN  ( ttxt_clkenx2 ),
-       .nRESET    ( reset_n      ),
+       .nRESET    ( hard_reset_n      ),
 
         //  Data input is synchronised to the main cpu bus clock.
        .DI_CLOCK  ( CLK32M_I     ),
