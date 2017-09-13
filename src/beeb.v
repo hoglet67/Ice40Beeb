@@ -88,9 +88,11 @@ module beeb
         else
           clock24 <= 1'b0;
         tmp <= clock32;
+     end
+   always @(negedge clk100)
+     begin
         wegate_b <= !tmp;
      end
-
    // ===============================================================
    // Reset generation
    // ===============================================================

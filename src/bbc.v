@@ -390,8 +390,8 @@ m6522 USER_VIA (
 
    // User port connections for MMFS
    
-   assign user_via_ca1_in = 1'b1; // Pulled up
-   assign user_via_ca2_in = 1'b1; // Pulled up
+   assign user_via_ca1_in = 1'b0;
+   assign user_via_ca2_in = 1'b0;
 
    // SCLK is driven from either PB1 or CB1 depending on the SR Mode
    wire sdclk_int   = !user_via_pb_oe_n[1] ? user_via_pb_out[1] :
@@ -409,11 +409,6 @@ m6522 USER_VIA (
    // SS is hardwired to 0 (always selected) as there is only one slave attached
    assign ss = 1'b0;
 
-   // Loop back ports (why?)
-   assign user_via_pa_in = user_via_pa_out;
-   assign user_via_pb_in = user_via_pb_out;
-
-   
 //  Keyboard
 keyboard KEYB (
 
