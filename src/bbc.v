@@ -178,7 +178,7 @@ wire    [7:0] sound_ao;
 
 //  System VIA signals
 wire    [7:0] sys_via_do;
-//reg    [7:0] sys_via_do_r;
+reg    [7:0] sys_via_do_r;
 wire    sys_via_do_oe_n;
 wire    sys_via_irq_n;
 wire     sys_via_ca1_in;
@@ -200,7 +200,7 @@ wire    [7:0] sys_via_pb_oe_n;
 
 //  User VIA signals
 wire    [7:0] user_via_do;
-//reg    [7:0] user_via_do_r;
+reg    [7:0] user_via_do_r;
 wire    user_via_do_oe_n;
 wire    user_via_irq_n;
 reg     user_via_ca1_in;
@@ -313,14 +313,14 @@ cpu CPU
 
    // This is needed as in v003 of the 6522 data out is only valid while I_P2_H is asserted
    // I_P2_H is driven from mhz1_clken
-//   always @(posedge CLK32M_I)
-//     begin
-//        if (mhz1_clken)
-//          begin
-//             user_via_do_r <= user_via_do;
-//             sys_via_do_r  <= sys_via_do;
-//          end
-//     end
+   always @(posedge CLK32M_I)
+     begin
+        if (mhz1_clken)
+          begin
+             user_via_do_r <= user_via_do;
+             sys_via_do_r  <= sys_via_do;
+          end
+     end
 
 m6522 SYS_VIA (
      //  System VIA is reset by power on reset only
@@ -644,8 +644,8 @@ assign cpu_di = ram_enable === 1'b 1 ? ext_Dout :
    mos_enable === 1'b 1 ? ext_Dout :
    crtc_enable === 1'b 1 ? crtc_do :
    acia_enable === 1'b 1 ? 8'b 00000010 :
-   sys_via_enable === 1'b 1 ? sys_via_do :
-   user_via_enable === 1'b 1 ? user_via_do :
+   sys_via_enable === 1'b 1 ? sys_via_do_r :
+   user_via_enable === 1'b 1 ? user_via_do_r :
    adc_enable === 1'b 1 ? adc_do :
    //tube_enable === 1'b 1 ? tube_do :
    //adlc_enable === 1'b 1 ? bbcddr_out :
