@@ -2,67 +2,63 @@
 
 module bbc(
 
-   input         CLK32M_I,
-   input         CLK24M_I,
+   input             CLK32M_I,
+   input             CLK24M_I,
 
-   input         RESET_I,
+   input             RESET_I,
 
-   output        HSYNC,
-   output        VSYNC,
+   output            HSYNC,
+   output            VSYNC,
 
-   output        VIDEO_CLKEN,
-   output        VIDEO_R,
-   output        VIDEO_G,
-   output        VIDEO_B,
+   output            VIDEO_CLKEN,
+   output            VIDEO_R,
+   output            VIDEO_G,
+   output            VIDEO_B,
 
     // RAM Interface (CPU)
 
-   output [15:0] MEM_ADR,
-   output        MEM_WE,
-   output [7:0]  MEM_DO,
-   input [7:0]   MEM_DI,
-   output [3:0]  ROMSEL,
+   output reg [17:0] ext_A,
+   output reg        ext_nOE,
+   output reg        ext_nWE,
+   output reg [7:0]  ext_Din,
+   input [7:0]       ext_Dout,
 
-   output        MEM_SYNC, // signal to synchronite sdram state machine
-
-   output [14:0] VID_ADR,
-   input [7:0]   VID_DI,
+   output            MEM_SYNC, // signal to synchronite sdram state machine
 
    // Keyboard interface
-   input         PS2_CLK,
-   input         PS2_DAT,
+   input             PS2_CLK,
+   input             PS2_DAT,
 
    // audio signal.
-   output [15:0] AUDIO_L,
-   output [15:0] AUDIO_R,
+   output [15:0]     AUDIO_L,
+   output [15:0]     AUDIO_R,
 
    // externally pressed "shift" key for autoboot
-   input         SHIFT,
+   input             SHIFT,
 
    // expose pins required for mmc
-   output [7:0]  user_via_pb_out,
-   input         user_via_cb1_in,
-   input         user_via_cb2_in,
+   output [7:0]      user_via_pb_out,
+   input             user_via_cb1_in,
+   input             user_via_cb2_in,
 
    // analog joystick input
-   input [1:0]   joy_but,
-   input [7:0]   joy0_axis0,
-   input [7:0]   joy0_axis1,
-   input [7:0]   joy1_axis0,
-   input [7:0]   joy1_axis1,
+   input [1:0]       joy_but,
+   input [7:0]       joy0_axis0,
+   input [7:0]       joy0_axis1,
+   input [7:0]       joy1_axis0,
+   input [7:0]       joy1_axis1,
 
    // boot settings
-   input [7:0]   DIP_SWITCH,
+   input [7:0]       DIP_SWITCH,
 
    // LEDs
-   output        caps_lock_led_n,
-   output        shift_lock_led_n,
-   output        break_led_n
+   output            caps_lock_led_n,
+   output            shift_lock_led_n,
+   output            break_led_n
 );
 
 // let sdram state machine synchronize to cpu
 assign MEM_SYNC = cpu_clken;
-assign ROMSEL = romsel;
 
 wire       ram_we;
 
@@ -291,7 +287,7 @@ input RDY;              // Ready signal. Pauses CPU when RDY=0
 cpu CPU
   (
    .clk    ( CLK32M_I     ),
-   .reset  ( ~reset_n     ),   
+   .reset  ( ~reset_n     ),
    .IRQ    ( ~cpu_irq_n   ),
    .NMI    ( ~cpu_nmi_n   ),
    .WE     ( cpu_we_next  ),
@@ -314,7 +310,7 @@ cpu CPU
           end
      end
 
-   
+
    // This is needed as in v003 of the 6522 data out is only valid while I_P2_H is asserted
    // I_P2_H is driven from mhz1_clken
 //   always @(posedge CLK32M_I)
@@ -470,7 +466,7 @@ vidproc VIDEO_ULA (
       .ENABLE(vidproc_enable),
       .A0(cpu_a[0]),
       .DI_CPU(cpu_do),
-      .DI_RAM(VID_DI[7:0]),
+      .DI_RAM(ext_Dout),
       .nINVERT(vidproc_invert_n),
       .DISEN(vidproc_disen),
       .CURSOR(crtc_cursor),
@@ -495,7 +491,7 @@ saa5050 TELETEXT (
         //  Data input is synchronised to the main cpu bus clock.
        .DI_CLOCK  ( CLK32M_I     ),
        .DI_CLKEN  ( VIDEO_CLKEN  ),
-       .DI        ( VID_DI[6:0]  ),
+       .DI        ( ext_Dout[6:0]),
 
        .GLR       ( ttxt_glr     ),
        .DEW       ( ttxt_dew     ),
@@ -637,15 +633,15 @@ assign disp_addr_offs = ic32[5:4];
 assign caps_lock_led_n = ic32[6];
 assign shift_lock_led_n = ic32[7];
 assign break_led_n = ~keyb_break;
-                    
+
 //  CPU data bus mux and interrupts
-wire himem_enable = rom_enable && (romsel[3] === 1'b0);
+//wire himem_enable = rom_enable && (romsel[3] === 1'b0);
 
 //  All regions normally de-selected
-assign cpu_di = ram_enable === 1'b 1 ? MEM_DI :
-   himem_enable === 1'b 1 ? MEM_DI :
-   rom_enable === 1'b 1 ? MEM_DI :
-   mos_enable === 1'b 1 ? MEM_DI :
+assign cpu_di = ram_enable === 1'b 1 ? ext_Dout :
+//   himem_enable === 1'b 1 ? ext_Dout :
+   rom_enable === 1'b 1 ? ext_Dout :
+   mos_enable === 1'b 1 ? ext_Dout :
    crtc_enable === 1'b 1 ? crtc_do :
    acia_enable === 1'b 1 ? 8'b 00000010 :
    sys_via_enable === 1'b 1 ? sys_via_do :
@@ -682,9 +678,40 @@ assign user_via_pa_in = user_via_pa_out;
 assign user_via_pb_in = user_via_pb_out;
 
 
-assign MEM_ADR = cpu_a;
-assign VID_ADR = display_a;
-assign MEM_WE = ram_we;
-assign MEM_DO = cpu_do;
+// Pipeline RAM accesses
+   always @(posedge CLK32M_I or negedge reset_n)
+     begin
+        if (!reset_n)
+          begin
+             ext_nOE <= 1'b1;
+             ext_nWE <= 1'b1;
+             ext_Din <= 0;
+             ext_A   <= 0;
+          end
+        else
+          begin
+             ext_Din  <= cpu_do;
+             ext_nWE  <= 1'b1;
+             ext_nOE  <= 1'b0;
+             if (VIDEO_CLKEN == 1'b0)
+               begin
+                  ext_A <= { 3'b000, display_a };
+               end
+             else if (rom_enable)
+               begin
+                  ext_A <= { romsel[3:0], cpu_a[13:0] };
+               end
+             else if (mos_enable)
+               begin
+                  ext_A <= { 2'b00, cpu_a };
+               end
+             else if (ram_enable)
+               begin
+                  ext_A <= { 2'b00, cpu_a };
+                  ext_nWE <= cpu_r_nw;
+                  ext_nOE <= ~cpu_r_nw;
+               end
+          end
+     end
 
 endmodule

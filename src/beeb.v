@@ -116,7 +116,7 @@ module beeb
    wire caps_lock_led_n;
    wire shift_lock_led_n;
    wire break_led_n;
-      
+
    reg        led1;
    reg        led2;
    reg        led3;
@@ -134,28 +134,18 @@ module beeb
    // Bootstrap (of ROM content from ARM into RAM )
    // ===============================================================
 
-   wire        video_clken;
-   wire        mem_sync;
-   wire [3:0]  beeb_RomSel;
    wire [15:0] beeb_A;
-   wire        beeb_WE;
-   wire        vid_clken;
-   wire [14:0] vid_addr;
+   wire        beeb_nOE;
+   wire        beeb_nWE;
 
    wire        beeb_RAMCS_b = 1'b0;
-   wire        beeb_RAMOE_b = vid_clken ? 1'b0 : beeb_WE;
-   wire        beeb_RAMWE_b = vid_clken ? 1'b1 : (!beeb_WE) | wegate_b;
+   wire        beeb_RAMOE_b;
+   wire        beeb_RAMWE_b;
+   wire [17:0] beeb_RAMA;
 
-   // This is not quite right, as it makes lower memory visible as roms 0..3 but that should be harmless
-   wire [17:0] beeb_RAMA    = vid_clken ? { 3'b000, vid_addr } : (beeb_A[15:14] == 2'b10) ? { beeb_RomSel[3:0], beeb_A[13:0]} : { 2'b00, beeb_A};
 
    wire [7:0]  beeb_RAMDin;
    wire [7:0]  beeb_RAMDout = data_pins_in;
-
-   reg [7:0]   vid_di;
-   always @(posedge clock32)
-     if (vid_clken)
-       vid_di = data_pins_in;
 
    wire        ext_RAMCS_b;
    wire        ext_RAMOE_b;
@@ -181,7 +171,7 @@ module beeb
       // RAM from Beeb
       .beeb_RAMCS_b(beeb_RAMCS_b),
       .beeb_RAMOE_b(beeb_RAMOE_b),
-      .beeb_RAMWE_b(beeb_RAMWE_b),
+      .beeb_RAMWE_b(beeb_RAMWE_b | wegate_b),
       .beeb_RAMA(beeb_RAMA),
       .beeb_RAMDin(beeb_RAMDin),
       // RAM to external SRAM
@@ -330,22 +320,19 @@ module beeb
       .HSYNC(hs),
       .VSYNC(vs),
 
-      .VIDEO_CLKEN(vid_clken),
+      .VIDEO_CLKEN(),
       .VIDEO_R(r),
       .VIDEO_G(g),
       .VIDEO_B(b),
 
       // RAM Interface (CPU)
-      .MEM_ADR(beeb_A),
-      .MEM_WE(beeb_WE),
-      .MEM_DO(beeb_RAMDin),
-      .MEM_DI(beeb_RAMDout),
-      .ROMSEL(beeb_RomSel),
+      .ext_A(beeb_RAMA),
+      .ext_nOE(beeb_RAMOE_b),
+      .ext_nWE(beeb_RAMWE_b),
+      .ext_Din(beeb_RAMDin),
+      .ext_Dout(beeb_RAMDout),
 
-      .MEM_SYNC(mem_sync),   // signal to synchronite sdram state machine
-
-      .VID_ADR(vid_addr),
-      .VID_DI(vid_di),
+      .MEM_SYNC(),   // signal to synchronite sdram state machine
 
       // Keyboard interface
       .PS2_CLK(ps2_clk_int),
@@ -376,7 +363,7 @@ module beeb
       // LEDs
       .caps_lock_led_n(caps_lock_led_n),
       .shift_lock_led_n(shift_lock_led_n),
-      .break_led_n(break_led_n)      
+      .break_led_n(break_led_n)
       );
 
 endmodule
