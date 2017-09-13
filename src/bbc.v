@@ -506,8 +506,8 @@ saa5050 TELETEXT (
 
         //  This runs at 6 MHz, which we can't derive from the 32 MHz clock
        .CLOCK     ( CLK24M_I     ),
-       .CLKEN     ( ttxt_clken   ),
-       .PIXCLKEN  ( ttxt_clkenx2 ),
+       .CLKEN     ( ttxt_clkenx2   ),
+//       .PIXCLKEN  ( ttxt_clkenx2 ),
        .nRESET    ( hard_reset_n      ),
 
         //  Data input is synchronised to the main cpu bus clock.
@@ -697,9 +697,9 @@ assign user_via_pb_in = user_via_pb_out;
 
 
 // Pipeline RAM accesses
-   always @(posedge CLK32M_I or negedge reset_n)
+   always @(posedge CLK32M_I or negedge hard_reset_n)
      begin
-        if (!reset_n)
+        if (!hard_reset_n)
           begin
              ext_nOE <= 1'b1;
              ext_nWE <= 1'b1;

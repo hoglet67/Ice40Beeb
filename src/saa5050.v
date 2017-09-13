@@ -48,7 +48,7 @@
 module saa5050 (
            CLOCK,
            CLKEN,
-           PIXCLKEN,
+//           PIXCLKEN,
            nRESET,
            DI_CLOCK,
            DI_CLKEN,
@@ -65,7 +65,7 @@ module saa5050 (
 
 input CLOCK;
 input CLKEN;
-input PIXCLKEN;
+//input PIXCLKEN;
 input nRESET;
 input DI_CLOCK;
 input DI_CLKEN;
@@ -94,13 +94,15 @@ reg lose_r;
 //  Data input registered in the pixel clock domain
 reg [6: 0] code;
 wire [3: 0] line_addr;
-wire [11: 0] rom_address;
-wire [7: 0] rom_data;
-wire    [3:0] line_addr_cmp;
+wire [11: 0] rom_address1;
+wire [11: 0] rom_address2;
+wire [7: 0] rom_data1;
+wire [7: 0] rom_data2;
+//wire    [3:0] line_addr_cmp;
 wire    [3:0] line_addr_p1;
 wire    [3:0] line_addr_m1;
-wire    [11:0] rom_address_cmp;
-wire    [7:0] rom_data_cmp;
+//wire    [11:0] rom_address_cmp;
+//wire    [7:0] rom_data_cmp;
 //  Delayed display enable derived from LOSE by delaying for one character
 reg disp_enable;
 
@@ -113,8 +115,8 @@ reg disp_enable_latch;
 //  keep track of which of the 10 lines we are on within the character...
 reg [3: 0] line_counter;
 
-//  ... and which of the 6 pixels we are on within each line
-reg [2: 0] pixel_counter;
+//  ... and which of the 12 pixels we are on within each line
+reg [3: 0] pixel_counter;
 
 //  We also need to count frames to implement the flash feature.
 //  The datasheet says this is 0.75 Hz with a 3:1 on/off ratio, so it
@@ -122,11 +124,11 @@ reg [2: 0] pixel_counter;
 reg [5: 0] flash_counter;
 
 //  Output shift register
-reg     odd_pixel;
-reg     shift_reg_last;
-reg [5: 0] shift_reg;
-reg     shift_reg_cmp_last;
-reg     [5:0] shift_reg_cmp;
+//reg     odd_pixel;
+//reg     shift_reg_last;
+reg [11: 0] shift_reg;
+//reg     shift_reg_cmp_last;
+//reg     [5:0] shift_reg_cmp;
 
 //  Flash mask
 wire flash;
@@ -150,9 +152,14 @@ reg double_high1;
 //  Set in second row of double height
 reg double_high2;
 
-saa5050_rom char_rom (.address(rom_address),
+saa5050_rom char_rom1 (.address(rom_address1),
                       .clock(CLOCK),
-                      .q(rom_data));
+                      .q(rom_data1));
+
+saa5050_rom char_rom2 (.address(rom_address2),
+                      .clock(CLOCK),
+                      .q(rom_data2));
+   
 assign flash = flash_counter[5] & flash_counter[4];
 //  Generate flash signal for 3:1 ratio
 //  Sync inputs
@@ -189,7 +196,7 @@ end
 assign line_addr = double_high === 1'b 0 ? line_counter :
        double_high2 === 1'b 0 ? {1'b 0, line_counter[3 : 1]} :
        {1'b 0, line_counter[3 : 1]} + 4'd5;
-assign rom_address = double_high === 1'b 0 & double_high2 === 1'b 1 ? {12{1'b 0}} :
+assign rom_address1 = double_high === 1'b 0 & double_high2 === 1'b 1 ? {12{1'b 0}} :
        {gfx, code, line_addr};
 assign line_addr_p1 = double_high === 1'b 0 ? line_counter + 1 :
        double_high2 === 1'b 0 ? {1'b 0, line_counter[3:1]} + 1 :
@@ -197,11 +204,14 @@ assign line_addr_p1 = double_high === 1'b 0 ? line_counter + 1 :
 assign line_addr_m1 = double_high === 1'b 0 ? line_counter - 1 :
        double_high2 === 1'b 0 ? {1'b 0, line_counter[3:1]} - 1 :
        {1'b 0, line_counter[3:1]} - 1 + 5;
-assign line_addr_cmp = CRS === 1'b 1 ? line_addr_p1 :
-       line_addr_m1;
-assign rom_address_cmp = double_high === 1'b 0 & double_high2 === 1'b 1 ? {12{1'b 0}} :
-       {gfx, code, line_addr_cmp};
+//assign line_addr_cmp = CRS === 1'b 1 ? line_addr_p1 :
+//       line_addr_m1;
+//assign rom_address_cmp = double_high === 1'b 0 & double_high2 === 1'b 1 ? {12{1'b 0}} :
+//       {gfx, code, line_addr_cmp};
 
+//reference row for character rounding
+assign rom_address2 = ((!double_high  & CRS) | (double_high &  line_counter[0])) ? rom_address1 + 1'b1 : rom_address1 - 1'b1;
+   
 //  Character row and pixel counters
 
 always @(posedge CLOCK) begin
@@ -230,8 +240,8 @@ always @(posedge CLOCK) begin
             double_high1 <= 1'b 1;
         end
 
-        //  Count pixels between 0 and 5
-        if (pixel_counter === 5) begin
+        //  Count pixels between 0 and 11
+        if (pixel_counter === 11) begin
 
             //  Start of next character and delayed display enable
             pixel_counter <= {3{1'b 0}};
@@ -246,7 +256,7 @@ always @(posedge CLOCK) begin
 
             //  Reset pixel counter - small offset to make the output
             //  line up with the cursor from the video ULA
-            pixel_counter <= 3'b 011;
+            pixel_counter <= 4'b 0110;
         end
 
         //  Count frames on end of VSYNC (falling edge of DEW)
@@ -287,6 +297,9 @@ end
 
 //  Shift register
 
+reg [11:0] a;
+reg [11:0] b;
+   
 always @(posedge CLOCK) begin
 
     if (nRESET === 1'b 0) begin
@@ -297,47 +310,69 @@ always @(posedge CLOCK) begin
 
         if (disp_enable === 1'b 1 & pixel_counter === 0) begin
 
+           // Character rounding
+                    
+           // a is the current row of pixels, doubled up
+           a = { rom_data1[5] , rom_data1[5] ,
+                 rom_data1[4] , rom_data1[4] ,
+                 rom_data1[3] , rom_data1[3] ,
+                 rom_data1[2] , rom_data1[2] ,
+                 rom_data1[1] , rom_data1[1] ,
+                 rom_data1[0] , rom_data1[0] };
+                            
+           // b is the adjacent row of pixels, doubled up
+           b = { rom_data2[5] , rom_data2[5] ,
+                 rom_data2[4] , rom_data2[4] ,
+                 rom_data2[3] , rom_data2[3] ,
+                 rom_data2[2] , rom_data2[2] ,
+                 rom_data2[1] , rom_data2[1] ,
+                 rom_data2[0] , rom_data2[0] };
+                            
             //  Load the shift register with the ROM bit pattern
             //  at the start of each character while disp_enable is asserted.
-            shift_reg <= rom_data[5: 0];
-            shift_reg_cmp <= rom_data_cmp[5:0];
+            shift_reg <= a;
+//            shift_reg_cmp <= rom_data_cmp[5:0];
 
             //  If bit 7 of the ROM data is set then this is a graphics
             //  character and separated/hold graphics modes apply.
             //  We don't just assume this to be the case if gfx=1 because
             //  these modes don't apply to caps even in graphics mode
-            if (rom_data[7] === 1'b 1) begin
+            if (rom_data1[7] === 1'b 1) begin
 
                 //  Apply a mask for separated graphics mode
                 if (gfx_sep === 1'b 1) begin
-                    shift_reg[5] <= 1'b 0;
-                    shift_reg[2] <= 1'b 0;
-
+                    a[10] = 1'b0;
+                    a[11] = 1'b0;
+                    a[4] = 1'b0;
+                    a[5] = 1'b0;
                     if (line_counter === 2 | line_counter === 6 |
                             line_counter === 9) begin
-                        shift_reg <= {6{1'b 0}};
+                        a = {12{1'b 0}};
                     end
                 end
+            end else begin
+               a = a | ({ 1'b0, a[11:1]} & b & ~{1'b0 , b[11:1]}) | 
+                   ({ a[10:0], 1'b0} & b & ~{b[10:0] , 1'b0});             
             end
 
-         if (rom_data_cmp[7] === 1'b 1) begin
-
-                //  Apply a mask for separated graphics mode
-                if (gfx_sep === 1'b 1) begin
-                    shift_reg_cmp[5] <= 1'b 0;
-                    shift_reg_cmp[2] <= 1'b 0;
-
-                    if (line_counter === 1 | line_counter === 5 |
-                            line_counter === 8) begin
-                        shift_reg_cmp <= {6{1'b 0}};
-                    end
-                end
-            end            //  Pump the shift register
+            shift_reg <= a;
+           
+//         if (rom_data_cmp[7] === 1'b 1) begin
+//                //  Apply a mask for separated graphics mode
+//                if (gfx_sep === 1'b 1) begin
+//                    shift_reg_cmp[5] <= 1'b 0;
+//                    shift_reg_cmp[2] <= 1'b 0;
+//                    if (line_counter === 1 | line_counter === 5 |
+//                            line_counter === 8) begin
+//                        shift_reg_cmp <= {6{1'b 0}};
+//                    end
+//                end
+//            end            //  Pump the shift register
         end else begin
-         shift_reg_last <= shift_reg[5];
-            shift_reg <= {shift_reg[4: 0], 1'b 0};
-         shift_reg_cmp_last <= shift_reg_cmp[5];
-            shift_reg_cmp <= {shift_reg_cmp[4:0], 1'b 0};
+//         shift_reg_last <= shift_reg[11];
+            shift_reg <= {shift_reg[10: 0], 1'b 0};
+//         shift_reg_cmp_last <= shift_reg_cmp[5];
+//            shift_reg_cmp <= {shift_reg_cmp[4:0], 1'b 0};
         end
     end
 end
@@ -414,10 +449,12 @@ always @(posedge CLOCK) begin
 end
 
 //  Output pixel calculation.
-wire  pixel =  double_high === 1'b 1 ?  shift_reg[5] & ~(flash & is_flash | conceal) :
-            odd_pixel   === 1'b 0 ?  (shift_reg[5] | shift_reg_cmp[5] & shift_reg[4] & ~shift_reg_cmp[4]) &  ~(flash & is_flash | conceal) :
-                               (shift_reg[5] | shift_reg_cmp[5] & shift_reg_last & ~shift_reg_cmp_last) & ~(flash & is_flash | conceal);
-
+//wire  pixel =  double_high === 1'b 1 ?  shift_reg[5] & ~(flash & is_flash | conceal) :
+//            odd_pixel   === 1'b 0 ?  (shift_reg[5] | shift_reg_cmp[5] & shift_reg[4] & ~shift_reg_cmp[4]) &  ~(flash & is_flash | conceal) :
+//                               (shift_reg[5] | shift_reg_cmp[5] & shift_reg_last & ~shift_reg_cmp_last) & ~(flash & is_flash | conceal);
+ wire pixel = shift_reg[11] & ~((flash & is_flash) | conceal);
+   
+   
 always @(posedge CLOCK) begin
 
     if (nRESET === 1'b 0) begin
@@ -426,11 +463,12 @@ always @(posedge CLOCK) begin
         G <= 1'b 0;
         B <= 1'b 0;
 
-    end else if (PIXCLKEN === 1'b 1 ) begin
+//    end else if (PIXCLKEN === 1'b 1 ) begin
+    end else if (CLKEN === 1'b 1 ) begin
 
         //  Generate mono output
         Y <= pixel;
-        odd_pixel <= ~odd_pixel;
+//        odd_pixel <= ~odd_pixel;
 
         //  Generate colour output
         if (pixel === 1'b 1) begin

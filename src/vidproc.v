@@ -58,9 +58,9 @@ module vidproc (
            input           R_IN,
            input        G_IN,
            input        B_IN,
-           output reg      R,
-           output reg      G,
-           output reg      B
+           output          R,
+           output          G,
+           output          B
        );
 
 //  Clock enable qualifies display cycles (interleaved with CPU cycles)
@@ -247,43 +247,37 @@ wire  red_val  = dot_val[3] & r0_flash ^ ~dot_val[0];
 wire  green_val   = dot_val[3] & r0_flash ^ ~dot_val[1];
 wire  blue_val    = dot_val[3] & r0_flash ^ ~dot_val[2];
 
+reg RR;
+reg GG;
+reg BB;
+   
 always @(posedge CLOCK) begin
 
     if (nRESET === 1'b 0) begin
 
-        R   <= 'd0;
-        G   <=    'd0;
-        B   <=    'd0;
+        RR   <= 'd0;
+        GG   <= 'd0;
+        BB   <= 'd0;
 
         delayed_disen <= 'd0;
 
     end
     else if (CLKEN === 1'b1) begin
 
-        //  To output
-        //  FIXME: INVERT option
-        if (r0_teletext === 1'b0) begin
-
-            //  Cursor can extend outside the bounds of the screen, so
-            //  it is not affected by DISEN
-            R <= red_val & delayed_disen ^ cursor_invert;
-            G <= green_val & delayed_disen ^ cursor_invert;
-            B <= blue_val & delayed_disen ^ cursor_invert;
-
-        end
-        else begin
-
-            R <= R_IN ^ cursor_invert;
-            G <= G_IN ^ cursor_invert;
-            B <= B_IN ^ cursor_invert;
-
-        end
+        RR <= (red_val & delayed_disen) ^ cursor_invert;
+        GG <= (green_val & delayed_disen) ^ cursor_invert;
+        BB <= (blue_val & delayed_disen) ^ cursor_invert;
 
         //  Display enable signal delayed by one clock
         delayed_disen <= DISEN;
     end
 
-end
-
+end // always @ (posedge CLOCK)
+   
+   // Allow the 12MHz teletext signals to pass through without re-sampling
+   assign R = r0_teletext ? (R_IN ^ cursor_invert) : RR;
+   assign G = r0_teletext ? (G_IN ^ cursor_invert) : GG;
+   assign B = r0_teletext ? (B_IN ^ cursor_invert) : BB;
+   
 endmodule // module vidproc
 
