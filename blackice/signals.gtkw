@@ -1,0 +1,72 @@
+[*]
+[*] GTKWave Analyzer v3.3.58 (w)1999-2014 BSI
+[*] Wed Sep 13 09:31:31 2017
+[*]
+[dumpfile] "/home/dmb/atom/Ice40Beeb/blackice/dump.vcd"
+[dumpfile_mtime] "Wed Sep 13 09:21:05 2017"
+[dumpfile_size] 1665156218
+[savefile] "/home/dmb/atom/Ice40Beeb/blackice/signals.gtkw"
+[timestart] 98399690800
+[size] 1855 1176
+[pos] -1 -549
+*-16.000000 98399935000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] beeb_tb.
+[treeopen] beeb_tb.DUT.
+[treeopen] beeb_tb.DUT.BBC.
+[sst_width] 223
+[signals_width] 126
+[sst_expanded] 1
+[sst_vpaned_height] 354
+@22
+beeb_tb.DUT.BBC.cpu_a[15:0]
+@28
+beeb_tb.DUT.BBC.cpu_clken
+@22
+beeb_tb.DUT.BBC.cpu_di[7:0]
+beeb_tb.DUT.BBC.cpu_do[7:0]
+@28
+beeb_tb.DUT.BBC.cpu_irq_n
+beeb_tb.DUT.BBC.cpu_nmi_n
+beeb_tb.DUT.BBC.cpu_r_nw
+beeb_tb.DUT.BBC.SYS_VIA.CLK
+beeb_tb.DUT.BBC.SYS_VIA.ENA_4
+beeb_tb.DUT.BBC.SYS_VIA.I_CS1
+beeb_tb.DUT.BBC.SYS_VIA.I_CS2_L
+@22
+beeb_tb.DUT.BBC.SYS_VIA.I_DATA[7:0]
+@28
+beeb_tb.DUT.BBC.SYS_VIA.I_P2_H
+@22
+beeb_tb.DUT.BBC.SYS_VIA.I_RS[3:0]
+@28
+beeb_tb.DUT.BBC.SYS_VIA.I_RW_L
+@22
+beeb_tb.DUT.BBC.SYS_VIA.O_DATA[7:0]
+@28
+beeb_tb.DUT.BBC.SYS_VIA.phase[1:0]
+@22
+beeb_tb.DUT.BBC.SYS_VIA.r_acr[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_ddra[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_ddrb[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_ier[6:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_ifr[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_ira[7:0]
+@28
+beeb_tb.DUT.BBC.SYS_VIA.r_ira_hs
+@22
+beeb_tb.DUT.BBC.SYS_VIA.r_irb[7:0]
+@28
+beeb_tb.DUT.BBC.SYS_VIA.r_irb_hs
+@22
+beeb_tb.DUT.BBC.SYS_VIA.r_ora[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_orb[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_pcr[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_sr[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_t1l_h[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_t1l_l[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_t2l_h[7:0]
+beeb_tb.DUT.BBC.SYS_VIA.r_t2l_l[7:0]
+@28
+beeb_tb.DUT.BBC.SYS_VIA.cs
+[pattern_trace] 1
+[pattern_trace] 0
