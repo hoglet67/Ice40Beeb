@@ -277,18 +277,6 @@ module beeb
    assign cas_out  = 1'b0;
 
    // ===============================================================
-   // SD Card
-   // ===============================================================
-
-   wire [7:0] user_via_pb_out;
-   wire       user_via_cb1_in = sclk;
-   wire       user_via_cb2_in = miso;
-
-   assign mosi = user_via_pb_out[0];
-   assign sclk = user_via_pb_out[1];
-   assign ss = 1'b0;
-
-   // ===============================================================
    // Video
    // ===============================================================
 
@@ -345,10 +333,11 @@ module beeb
       // externally pressed "shift" key for autoboot
       .SHIFT(1'b0),
 
-      // expose pins required for mmc
-      .user_via_pb_out(user_via_pb_out),
-      .user_via_cb1_in(user_via_cb1_in),
-      .user_via_cb2_in(user_via_cb2_in),
+      // SD Card
+      .ss(ss),
+      .sclk(sclk),
+      .mosi(mosi),
+      .miso(miso),
 
       // analog joystick input
       .joy_but(2'b0),

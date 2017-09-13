@@ -36,11 +36,12 @@ module bbc(
    // externally pressed "shift" key for autoboot
    input             SHIFT,
 
-   // expose pins required for mmc
-   output [7:0]      user_via_pb_out,
-   input             user_via_cb1_in,
-   input             user_via_cb2_in,
-
+   // SD Card
+   output            ss,
+   output            sclk,
+   output            mosi,
+   input             miso,
+           
    // analog joystick input
    input [1:0]       joy_but,
    input [7:0]       joy0_axis0,
@@ -203,21 +204,21 @@ wire    [7:0] user_via_do;
 reg    [7:0] user_via_do_r;
 wire    user_via_do_oe_n;
 wire    user_via_irq_n;
-reg     user_via_ca1_in;
-reg     user_via_ca2_in;
+wire    user_via_ca1_in;
+wire    user_via_ca2_in;
 wire    user_via_ca2_out;
 wire    user_via_ca2_oe_n;
 wire    [7:0] user_via_pa_in;
 wire    [7:0] user_via_pa_out;
 wire    [7:0] user_via_pa_oe_n;
-//TH wire     user_via_cb1_in;
+wire    user_via_cb1_in;
 wire    user_via_cb1_out;
 wire    user_via_cb1_oe_n;
-//TH wire     user_via_cb2_in;
+wire    user_via_cb2_in;
 wire    user_via_cb2_out;
 wire    user_via_cb2_oe_n;
 wire    [7:0] user_via_pb_in;
-//TH wire    [7:0] user_via_pb_out;
+wire    [7:0] user_via_pb_out;
 wire    [7:0] user_via_pb_oe_n;
 
 // calulation for display address
@@ -387,6 +388,32 @@ m6522 USER_VIA (
     .O_PB_OE_L(user_via_pb_oe_n)
 );
 
+   // User port connections for MMFS
+   
+   assign user_via_ca1_in = 1'b1; // Pulled up
+   assign user_via_ca2_in = 1'b1; // Pulled up
+
+   // SCLK is driven from either PB1 or CB1 depending on the SR Mode
+   wire sdclk_int   = !user_via_pb_oe_n[1] ? user_via_pb_out[1] :
+                      !user_via_cb1_oe_n   ? user_via_cb1_out : 1'b1;
+   
+   assign sclk = sdclk_int;
+   assign user_via_cb1_in = sdclk_int;
+
+   // MOSI is always driven from PB0
+   assign mosi = !user_via_pb_oe_n[0] ? user_via_pb_out[0] : 1'b1;
+
+   // MISO is always read from CB2
+   assign user_via_cb2_in = miso; // SDI
+
+   // SS is hardwired to 0 (always selected) as there is only one slave attached
+   assign ss = 1'b0;
+
+   // Loop back ports (why?)
+   assign user_via_pa_in = user_via_pa_out;
+   assign user_via_pb_in = user_via_pb_out;
+
+   
 //  Keyboard
 keyboard KEYB (
 
@@ -506,10 +533,6 @@ saa5050 TELETEXT (
 
 initial begin : via_init
 
-   //user_via_cb1_in = 1'b 0;
-   user_via_ca2_in = 1'b 0;
-   user_via_ca1_in = 1'b 0;
-   user_via_ca2_in = 1'b 0;
    crtc_lpstb = 1'b 0;
 
 end
