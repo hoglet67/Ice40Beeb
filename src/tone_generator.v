@@ -10,13 +10,15 @@ module tone_generator
    reg [9:0]   count;
    reg         tone;
 
+   parameter init = 0;
+   
    // the datasheet suggests that the frequency register is loaded
    // into a 10-bit counter and decremented until it hits 0
    // however, this results in a half-period of FREQ+1!
    always @(posedge clk or posedge reset)
      if(reset)
        begin
-          count <= 0;
+          count <= init;
           tone  <= 1'b0;
        end
      else if (clk_div16_en)

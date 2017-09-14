@@ -55,11 +55,11 @@ module sn76489
      if (reset)
        begin
           // attenutation registers are the important bits
-          regs[0] <= 0;
+          regs[0] <= 1023;
           regs[1] <= 0;
-          regs[2] <= 0;
+          regs[2] <= 1023;
           regs[3] <= 0;
-          regs[4] <= 0;
+          regs[4] <= 1023;
           regs[5] <= 0;
           regs[6] <= 0;
           regs[7] <= 0;
@@ -93,7 +93,7 @@ module sn76489
        end
 
 
-   tone_generator tone_inst0
+   tone_generator #(0) tone_inst0
      (
       .clk(clk),
       .clk_div16_en(clk_div16_en),
@@ -102,7 +102,7 @@ module sn76489
       .audio_out(audio_d[0])
       );
 
-   tone_generator tone_inst1
+   tone_generator #(313) tone_inst1
      (
       .clk(clk),
       .clk_div16_en(clk_div16_en),
@@ -111,7 +111,7 @@ module sn76489
       .audio_out(audio_d[1])
       );
 
-   tone_generator tone_inst2
+   tone_generator #(717) tone_inst2
      (
       .clk(clk),
       .clk_div16_en(clk_div16_en),
