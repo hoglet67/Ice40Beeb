@@ -287,14 +287,47 @@ module beeb
    wire       b;
    wire       hs;
    wire       vs;
+   wire       vid_clken;
+   wire       vga_hs;
+   wire       vga_vs;
+   wire [5:0] vga_r;
+   wire [5:0] vga_g;
+   wire [5:0] vga_b;
 
-   assign red   = {r, r, r, r};
-   assign green = {g, g, g, g};
-   assign blue  = {b, b, b, b};
-   assign hsync = !(vs | hs);
-   assign vsync = 1'b0;
+//   assign red   = {r, r, r, r};
+//   assign green = {g, g, g, g};
+//   assign blue  = {b, b, b, b};
+//   assign hsync = !(vs | hs);
+//   assign vsync = 1'b0;
 
-   // TODO: Add scan convertor
+   assign red   = vga_r[5:2];
+   assign green = vga_g[5:2];
+   assign blue  = vga_b[5:2];
+   assign hsync = vga_hs;
+   assign vsync = vga_vs;
+
+mist_scandoubler SD
+(
+  // system interface
+  .clk_x2(clock32),
+  .clk_pix(clock32),
+  .clken_pix(vid_clken),
+  // scanlines (00-none 01-25% 10-50% 11-75%)
+  .scanlines(2'b00),
+  // shifter video interface
+  .hs_in(hs),
+  .vs_in(vs),
+  .r_in({6{r}}),
+  .g_in({6{g}}),
+  .b_in({6{b}}),
+
+  // output interface
+  .hs_out(vga_hs),
+  .vs_out(vga_vs),
+  .r_out(vga_r),
+  .g_out(vga_g),
+  .b_out(vga_b)
+);
 
    // ===============================================================
    // Mist BBC Core
@@ -310,7 +343,7 @@ module beeb
       .HSYNC(hs),
       .VSYNC(vs),
 
-      .VIDEO_CLKEN(),
+      .VIDEO_CLKEN(vid_clken),
       .VIDEO_R(r),
       .VIDEO_G(g),
       .VIDEO_B(b),
