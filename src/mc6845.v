@@ -46,7 +46,7 @@
 // Fixed incorrect positioning of cursor when over left most character
 // Fixed timing of VSYNC
 // Fixed interlaced timing (add an extra line)
-// Implemented r05_v_total_adj (TODO: port this fix from VHDL)
+// Implemented r05_v_total_adj
 // Implemented delay parts of r08_interlace (see Hitacht HD6845SP datasheet)
 //
 // (C) 2017 David Banks
@@ -167,14 +167,13 @@ module mc6845
    reg           vs;
    reg           odd_field;
    reg [13:0]    ma_i;
-   wire [13:0]   ma_row_start;
    //  Start address of current character row
    reg           cursor_i;
    reg           lpstb_i;
-   reg [13:0]    process_2_ma_row_start;
-   reg [4:0]     process_2_max_scan_line;
+   reg [13:0]    ma_row_start;
+   reg [4:0]     max_scan_line;
    wire [4:0]    slv_line;
-   reg           process_6_cursor_line;
+   reg           cursor_line;
 
    wire          de0;
    reg           de1;
@@ -373,7 +372,7 @@ module mc6845
          field_counter <= 'd0;
 
          //  Addressing
-         process_2_ma_row_start = 'd0;
+         ma_row_start = 'd0;
          ma_i <= 'd0;
       end
       else if (CLKEN === 1'b 1 ) begin
@@ -388,16 +387,16 @@ module mc6845
             //  In interlace sync + video mode mask off the LSb of the
             //  max scan line address
             if (r08_interlace[1:0] === 2'b 11) begin
-               process_2_max_scan_line = {r09_max_scan_line_addr[4:1], 1'b 0};
+               max_scan_line = {r09_max_scan_line_addr[4:1], 1'b 0};
             end
             else begin
-               process_2_max_scan_line = r09_max_scan_line_addr;
+               max_scan_line = r09_max_scan_line_addr;
             end
 
             // dmb: get the total number of lines correct in all cases
             if ((odd_field == 1'b0 &
                  // Implement v_total_adj
-                 ((line_counter == process_2_max_scan_line  & row_counter == r04_v_total & r05_v_total_adj == 0) |
+                 ((line_counter == max_scan_line  & row_counter == r04_v_total & r05_v_total_adj == 0) |
                   (line_counter == r05_v_total_adj & row_counter > r04_v_total))) |
                 (odd_field == 1'b1 &
                  // Add one extra line to the odd field
@@ -419,19 +418,19 @@ module mc6845
 
                // Address is loaded from start address register at the top of
                // each field and the row counter is reset
-               process_2_ma_row_start = {r12_start_addr_h, r13_start_addr_l};
+               ma_row_start = {r12_start_addr_h, r13_start_addr_l};
                row_counter <= 'd0;
 
                // Increment field counter
                field_counter <= field_counter + 1;
 
-            end else if (line_counter == process_2_max_scan_line) begin
+            end else if (line_counter == max_scan_line) begin
                // Scan line counter increments, wrapping at max_scan_line_addr
                // Next character row
                line_counter <= 'd0;
                // On all other character rows within the field the row start address is
                // increased by h_displayed and the row counter is incremented
-               process_2_ma_row_start = process_2_ma_row_start + r01_h_displayed;
+               ma_row_start = ma_row_start + r01_h_displayed;
                row_counter <= row_counter + 1;
               //  Next scan line.  Count in twos in interlaced sync+video mode
             end
@@ -448,7 +447,7 @@ module mc6845
 
             //  Memory address preset to row start at the beginning of each
             //  scan line
-            ma_i <= process_2_ma_row_start;
+            ma_i <= ma_row_start;
 
             //  Increment horizontal counter
          end
@@ -577,7 +576,7 @@ module mc6845
 
       if (nRESET === 1'b 0) begin
          cursor_i <= 1'b 0;
-         process_6_cursor_line = 1'b 0;
+         cursor_line = 1'b 0;
       end
       else if (CLKEN === 1'b 1 ) begin
          if (h_display_early === 1'b 1 & v_display_early === 1'b 1 &
@@ -585,22 +584,22 @@ module mc6845
             if (line_counter === 0) begin
 
                //  Suppress wrap around if last line is > max scan line
-               process_6_cursor_line = 1'b 0;
+               cursor_line = 1'b 0;
             end
 
             if (line_counter === r10_cursor_start) begin
 
                //  First cursor scanline
-               process_6_cursor_line = 1'b 1;
+               cursor_line = 1'b 1;
             end
 
             //  Cursor output is asserted within the current cursor character
             //  on the selected lines only
-            cursor_i <= process_6_cursor_line;
+            cursor_i <= cursor_line;
             if (line_counter === r11_cursor_end) begin
 
                //  Last cursor scanline
-               process_6_cursor_line = 1'b 0;
+               cursor_line = 1'b 0;
             end
 
             //  Cursor is off in all character positions apart from the
