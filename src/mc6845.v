@@ -435,7 +435,7 @@ module mc6845
                 field_counter <= field_counter + 1;
 
                // Reset the in extra time flag
-               in_adj = 1'b0;
+               in_adj <= 1'b0;
 
             end else if (!in_adj & (line_counter == max_scan_line)) begin
                // Scan line counter increments, wrapping at max_scan_line_addr
@@ -448,7 +448,7 @@ module mc6845
                // Test if we are entering the adjust phase, and set
                // in_adj accordingly
                if (row_counter == r04_v_total & need_adj)
-                 in_adj = 1'b1;
+                 in_adj <= 1'b1;
             end
             else begin
               //  Next scan line.  Count in twos in interlaced sync+video mode
