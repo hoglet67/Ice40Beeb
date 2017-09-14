@@ -445,9 +445,7 @@ module saa5050
                          {gfx, code_r, line_addr};
 
    //  Reference row for character rounding
-   //  TODO: for some reason CRS is the opposite polarity c.f. the VHDL models
-   //  hence the negation below. This is probably a difference in the 6845 models.
-   assign rom_address2 = ((!CRS & !double_high) | (double_high & line_counter[0])) ?
+   assign rom_address2 = ((CRS & !double_high) | (double_high & line_counter[0])) ?
                          rom_address1 + 1'b1 :
                          rom_address1 - 1'b1;
 

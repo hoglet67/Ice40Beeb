@@ -158,7 +158,7 @@ module mc6845
 
    //  Internal signals
    wire          h_sync_start;
-   wire          h_half_way;
+   wire          v_sync_start;
    reg           h_display;
    wire          h_display_early;
    reg           hs;
@@ -394,43 +394,46 @@ module mc6845
                process_2_max_scan_line = r09_max_scan_line_addr;
             end
 
-            //  Scan line counter increments, wrapping at max_scan_line_addr
-            if (line_counter === process_2_max_scan_line) begin
+            // dmb: get the total number of lines correct in all cases
+            if ((odd_field == 1'b0 &
+                 // Implement v_total_adj
+                 ((line_counter == process_2_max_scan_line  & row_counter == r04_v_total & r05_v_total_adj == 0) |
+                  (line_counter == r05_v_total_adj & row_counter > r04_v_total))) |
+                (odd_field == 1'b1 &
+                 // Add one extra line to the odd field
+                 (line_counter > r05_v_total_adj & row_counter > r04_v_total))) begin
 
                //  Next character row
                //  FIXME: No support for v_total_adj yet
                line_counter <= 'd0;
 
-               if (row_counter === r04_v_total) begin
-
-                  //  If in interlace mode we toggle to the opposite field.
-                  //  Save on some logic by doing this here rather than at the
-                  //  end of v_total_adj - it shouldn't make any difference to the
-                  //  output
-                  if (r08_interlace[0] === 1'b 1) begin
-                     odd_field <= ~odd_field;
-                  end
-                  else begin
-                     odd_field <= 1'b 0;
-                  end
-
-                  //  Address is loaded from start address register at the top of
-                  //  each field and the row counter is reset
-                  process_2_ma_row_start = {r12_start_addr_h, r13_start_addr_l};
-                  row_counter <= 'd0;
-
-                  //  Increment field counter
-                  field_counter <= field_counter + 1;
-
-                  //  On all other character rows within the field the row start address is
-                  //  increased by h_displayed and the row counter is incremented
-               end
-               else begin
-                  process_2_ma_row_start = process_2_ma_row_start + r01_h_displayed;
-                  row_counter <= row_counter + 1;
+               // If in interlace mode we toggle to the opposite field.
+               // Save on some logic by doing this here rather than at the
+               // end of v_total_adj - it shouldn't make any difference to the
+               // output
+               if (r08_interlace[0]) begin
+                  odd_field <= !odd_field;
+               end else begin
+                  odd_field <= 1'b0;
                end
 
-               //  Next scan line.  Count in twos in interlaced sync+video mode
+               // Address is loaded from start address register at the top of
+               // each field and the row counter is reset
+               process_2_ma_row_start = {r12_start_addr_h, r13_start_addr_l};
+               row_counter <= 'd0;
+
+               // Increment field counter
+               field_counter <= field_counter + 1;
+
+            end else if (line_counter == process_2_max_scan_line) begin
+               // Scan line counter increments, wrapping at max_scan_line_addr
+               // Next character row
+               line_counter <= 'd0;
+               // On all other character rows within the field the row start address is
+               // increased by h_displayed and the row counter is incremented
+               process_2_ma_row_start = process_2_ma_row_start + r01_h_displayed;
+               row_counter <= row_counter + 1;
+              //  Next scan line.  Count in twos in interlaced sync+video mode
             end
             else begin
                if (r08_interlace[1:0] === 2'b 11) begin
@@ -464,9 +467,15 @@ module mc6845
    //  Horizontal, vertical and address counters
 
    assign h_sync_start = h_counter === r02_h_sync_pos;
-   assign h_half_way = h_counter === {1'b 0, r02_h_sync_pos[7:1]};
    assign h_display_early = (h_counter < r01_h_displayed);
    assign v_display_early = (row_counter < r06_v_displayed);
+
+   // dmb: measurements on a real beeb confirm this is the actual
+   // 6845 behaviour. i.e. in non-interlaced mode the start of vsync
+   // coinscides with the start of the active display, and in intelaced
+   // mode the vsync of the odd field is delayed by half a scan line
+   assign v_sync_start = ((odd_field == 1'b0) & (h_counter == 0)) |
+                         ((odd_field == 1'b1) & (h_counter == {1'b0, r00_h_total[7:1]}));
 
    //  Video timing and sync counters
 
@@ -512,8 +521,7 @@ module mc6845
 
          //  Vertical sync occurs either at the same time as the horizontal sync (even fields)
          //  or half a line later (odd fields)
-         if (odd_field === 1'b 0 & h_sync_start === 1'b 1 |
-             odd_field === 1'b 1 & h_sync_start === 1'b 1) begin
+         if (v_sync_start) begin
             if (row_counter === r07_v_sync_pos & line_counter === 0 |
                 vs === 1'b 1) begin
 
