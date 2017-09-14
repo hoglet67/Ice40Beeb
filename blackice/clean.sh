@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROG=bbc
+PROG=beeb
 
 # Remove BlackIce files
 rm -f $PROG.blif $PROG.txt $PROG.bin $PROG.log
