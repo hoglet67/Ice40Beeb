@@ -219,7 +219,7 @@ module saa5050
          double_high1      <= 1'b0;
          double_high2      <= 1'b0;
          line_counter      <= 4'b0000;
-         pixel_counter     <= 3'b000;
+         pixel_counter     <= 4'b0000;
          flash_counter     <= 6'b000000;
 
       end else if (CLKEN === 1'b1 ) begin
@@ -239,7 +239,7 @@ module saa5050
          if (pixel_counter === 11) begin
 
             //  Start of next character and delayed display enable
-            pixel_counter <= 3'b000;
+            pixel_counter <= 4'b0000;
             disp_enable <= lose_latch;
 
          end else begin
@@ -251,7 +251,7 @@ module saa5050
 
             //  Reset pixel counter - small offset to make the output
             //  line up with the cursor from the video ULA
-            pixel_counter <= 4'b0110;
+            pixel_counter <= 4'b0010;
          end
 
          //  Count frames on end of VSYNC (falling edge of DEW)
@@ -541,13 +541,13 @@ module saa5050
          Y <= pixel;
          //  Generate colour output
          if (pixel === 1'b1) begin
-            R <= fg[0];
-            G <= fg[1];
-            B <= fg[2];
+            R <= fg_r[0];
+            G <= fg_r[1];
+            B <= fg_r[2];
          end else begin
-            R <= bg[0];
-            G <= bg[1];
-            B <= bg[2];
+            R <= bg_r[0];
+            G <= bg_r[1];
+            B <= bg_r[2];
          end
       end
    end

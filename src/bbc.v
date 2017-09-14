@@ -446,7 +446,7 @@ adc ADC (
 mc6845 CRTC (
     .CLOCK(CLK32M_I),
     .CLKEN(crtc_clken),
-    .CLKEN_ADR(crtc_clken_adr),
+    .CLKEN_ADR(crtc_clken),
     .nRESET(hard_reset_n),
     .ENABLE(crtc_enable),
     .R_nW(cpu_r_nw),
