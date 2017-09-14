@@ -43,12 +43,20 @@
 //
 //  (C) 2011 Mike Stirling
 //
-
+// Corrected cursor flash rate
+// Fixed incorrect positioning of cursor when over left most character
+// Fixed timing of VSYNC
+// Fixed interlaced timing (add an extra line)
+// Implemented r05_v_total_adj (TODO: port this fix from VHDL)
+// Implemented delay parts of r08_interlace (see Hitacht HD6845SP datasheet)
+//
+// (C) 2017 David Banks
+                                                  
 module mc6845 (
            CLOCK,
            CLKEN,
-           CLKEN_ADR,
            nRESET,
+           CLKEN_ADR,
            ENABLE,
            R_nW,
            RS,
@@ -60,10 +68,7 @@ module mc6845 (
            CURSOR,
            LPSTB,
            MA,
-           RA,
-           ODDFIELD,
-           INTERLACE);
-
+           RA);
 
 input   CLOCK;
 input   CLKEN;
@@ -81,8 +86,6 @@ output   CURSOR;
 input   LPSTB;
 output   [13:0] MA;
 output   [4:0] RA;
-output   ODDFIELD;
-output   INTERLACE;
 
 reg     [7:0] DO;
 wire    VSYNC;
@@ -93,8 +96,6 @@ wire    CURSOR;
 //  Memory interface
 reg     [13:0] MA;
 reg     [4:0] RA;
-wire    ODDFIELD;
-wire    INTERLACE;
 reg     [4:0] addr_reg;
 //  Currently addressed register
 
@@ -117,7 +118,7 @@ reg     [6:0] r06_v_displayed;
 //  Vertical active, character rows
 reg     [6:0] r07_v_sync_pos;
 //  Vertical sync position, character rows
-reg     [1:0] r08_interlace;
+reg     [7:0] r08_interlace;
 reg     [4:0] r09_max_scan_line_addr;
 reg     [1:0] r10_cursor_mode;
 reg     [4:0] r10_cursor_start;
@@ -152,14 +153,16 @@ reg     [4:0] line_counter;
 reg     [3:0] v_sync_counter;
 
 //  Field counter counts number of complete fields for cursor flash
-reg     [5:0] field_counter;
+reg     [4:0] field_counter;
 
 //  Internal signals
 wire    h_sync_start;
 wire    h_half_way;
 reg     h_display;
+wire    h_display_early;   
 reg     hs;
 reg     v_display;
+wire    v_display_early;
 reg     vs;
 reg     odd_field;
 reg     [13:0] ma_i;
@@ -172,24 +175,46 @@ reg     [4:0]  process_2_max_scan_line;
 wire     [4:0]  slv_line;
 reg      process_6_cursor_line;
 
+wire de0;   
+reg de1;
+reg de2;
+
+wire cursor0;
+reg cursor1;
+reg cursor2;
+   
+   
 //  Internal cursor enable signal delayed by 1 clock to line up
 //  with address outputs
 
-assign ODDFIELD = odd_field;
-assign INTERLACE = r08_interlace[0];
 assign HSYNC = hs;
 //  External HSYNC driven directly from internal signal
 assign VSYNC = vs;
 //  External VSYNC driven directly from internal signal
-assign DE = h_display & v_display;
 
-//  Cursor output generated combinatorially from the internal signal in
-//  accordance with the currently selected cursor mode
-assign CURSOR = r10_cursor_mode === 2'b 00 ? cursor_i :
-       r10_cursor_mode === 2'b 01 ? 1'b 0 :
-       r10_cursor_mode === 2'b 10 ? cursor_i & field_counter[4] :
-       cursor_i & field_counter[5];
+assign de0 = h_display & v_display;
 
+// In Mode 7 DE Delay is set to 01, but in our implementation no delay is needed
+// TODO: Fix SAA5050
+assign DE = (r08_interlace[5:4] == 2'b00) ? de0 :
+            (r08_interlace[5:4] == 2'b01) ? de0 : // not accurate, should be de1
+            (r08_interlace[5:4] == 2'b10) ? de2 :
+            1'b0;   
+
+// Cursor output generated combinatorially from the internal signal in
+// accordance with the currently selected cursor mode
+assign cursor0 = (r10_cursor_mode == 2'b00) ? cursor_i :
+                 (r10_cursor_mode == 2'b01) ? 1'b0 :
+                 (r10_cursor_mode == 2'b10) ? (cursor_i & field_counter[3]) :
+                 (cursor_i & field_counter[4]);
+
+// In Mode 7 Cursor Delay is set to 10, but in our implementation one one cycle is needed
+// TODO: Fix SAA5050
+assign CURSOR = (r08_interlace[7:6] == 2'b00) ? cursor0 :
+                (r08_interlace[7:6] == 2'b01) ? cursor1 :
+                (r08_interlace[7:6] == 2'b10) ? cursor1 : // not accurate, should be cursor2
+                1'b0;
+   
 //  Synchronous register access.  Enabled on every clock.
 
 always @(posedge CLOCK) begin
@@ -207,7 +232,7 @@ always @(posedge CLOCK) begin
         r05_v_total_adj <= 'd0;
         r06_v_displayed <= 'd0;
         r07_v_sync_pos <= 'd0;
-        r08_interlace <= {2{1'b 0}};
+        r08_interlace <= 'd0;
         r09_max_scan_line_addr <= 'd0;
         r10_cursor_mode <= {2{1'b 0}};
         r10_cursor_start <= 'd0;
@@ -287,7 +312,7 @@ always @(posedge CLOCK) begin
                         end
 
                         5'b 01000: begin
-                            r08_interlace <= DI[1:0];
+                            r08_interlace <= DI[7:0];
                         end
 
                         5'b 01001: begin
@@ -361,7 +386,7 @@ always @(posedge CLOCK) begin
 
             //  In interlace sync + video mode mask off the LSb of the
             //  max scan line address
-            if (r08_interlace === 2'b 11) begin
+            if (r08_interlace[1:0] === 2'b 11) begin
                 process_2_max_scan_line = {r09_max_scan_line_addr[4:1], 1'b 0};
             end
             else begin
@@ -407,7 +432,7 @@ always @(posedge CLOCK) begin
                 //  Next scan line.  Count in twos in interlaced sync+video mode
             end
             else begin
-                if (r08_interlace === 2'b 11) begin
+                if (r08_interlace[1:0] === 2'b 11) begin
                     line_counter <= line_counter + 2;
                     line_counter[0] <= 1'b 0;
                     //  Force to even
@@ -439,7 +464,9 @@ end
 
 assign h_sync_start = h_counter === r02_h_sync_pos;
 assign h_half_way = h_counter === {1'b 0, r02_h_sync_pos[7:1]};
-
+assign h_display_early = (h_counter < r01_h_displayed);
+assign v_display_early = (row_counter < r06_v_displayed);
+   
 //  Video timing and sync counters
 
 always @(posedge CLOCK) begin
@@ -459,17 +486,7 @@ always @(posedge CLOCK) begin
     else if (CLKEN === 1'b 1 ) begin
 
         //  Horizontal active video
-        if (h_counter === 0) begin
-
-            //  Start of active video
-            h_display <= 1'b 1;
-        end
-
-        if (h_counter === r01_h_displayed) begin
-
-            //  End of active video
-            h_display <= 1'b 0;
-        end
+        h_display <= h_display_early;
 
         //  Horizontal sync
         if (h_sync_start === 1'b 1 | hs === 1'b 1) begin
@@ -490,17 +507,7 @@ always @(posedge CLOCK) begin
         end
 
         //  Vertical active video
-        if (row_counter === 0) begin
-
-            //  Start of active video
-            v_display <= 1'b 1;
-        end
-
-        if (row_counter === r06_v_displayed) begin
-
-            //  End of active video
-            v_display <= 1'b 0;
-        end
+        v_display <= v_display_early;
 
         //  Vertical sync occurs either at the same time as the horizontal sync (even fields)
         //  or half a line later (odd fields)
@@ -541,7 +548,7 @@ always @(posedge CLOCK) begin
 
         //  Character row address is just the scan line counter delayed by
         //  one clock to line up with the syncs.
-        if (r08_interlace === 2'b 11) begin
+        if (r08_interlace[1:0] === 2'b 11) begin
 
             //  In interlace sync and video mode the LSb is determined by the
             //  field number.  The line counter counts up in 2s in this case.
@@ -564,7 +571,7 @@ always @(posedge CLOCK) begin
         process_6_cursor_line = 1'b 0;
     end
     else if (CLKEN === 1'b 1 ) begin
-        if (h_display === 1'b 1 & v_display === 1'b 1 &
+        if (h_display_early === 1'b 1 & v_display_early === 1'b 1 &
                 ma_i === {r14_cursor_h, r15_cursor_l}) begin
             if (line_counter === 0) begin
 
@@ -620,8 +627,15 @@ always @(posedge CLOCK) begin
     end
 end
 
-
-
+// Delayed CURSOR and DE (selected by R08)
+always @(posedge CLOCK) begin
+   if (CLKEN) begin
+      de1     <= de0;
+      de2     <= de1;
+      cursor1 <= cursor0;
+      cursor2 <= cursor1;
+   end
+end
 
 endmodule // module mc6845
 
