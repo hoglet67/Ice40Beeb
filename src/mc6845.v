@@ -172,6 +172,9 @@ module mc6845
    reg           lpstb_i;
    reg [13:0]    ma_row_start;
    reg [4:0]     max_scan_line;
+   reg [4:0]     adj_scan_line;
+   reg           in_adj;
+   reg           need_adj;
    wire [4:0]    slv_line;
    reg           cursor_line;
 
@@ -374,6 +377,7 @@ module mc6845
          //  Addressing
          ma_row_start = 'd0;
          ma_i <= 'd0;
+         in_adj <= 1'b0;
       end
       else if (CLKEN === 1'b 1 ) begin
 
@@ -384,23 +388,29 @@ module mc6845
             //  h_total reached
             h_counter <= 'd0;
 
-            //  In interlace sync + video mode mask off the LSb of the
-            //  max scan line address
-            if (r08_interlace[1:0] === 2'b 11) begin
-               max_scan_line = {r09_max_scan_line_addr[4:1], 1'b 0};
-            end
-            else begin
-               max_scan_line = r09_max_scan_line_addr;
-            end
+            // Compute
+            need_adj = (r05_v_total_adj != 0) | odd_field;
 
-            // dmb: get the total number of lines correct in all cases
-            if ((odd_field == 1'b0 &
-                 // Implement v_total_adj
-                 ((line_counter == max_scan_line  & row_counter == r04_v_total & r05_v_total_adj == 0) |
-                  (line_counter == r05_v_total_adj & row_counter > r04_v_total))) |
-                (odd_field == 1'b1 &
-                 // Add one extra line to the odd field
-                 (line_counter > r05_v_total_adj & row_counter > r04_v_total))) begin
+            // Compute the max scan line for this row
+            if (in_adj == 1'b0) begin
+               // This is a normal row, so use r09_max_scan_line_addr
+               max_scan_line = r09_max_scan_line_addr;
+            end else begin
+               // This is the "adjust" row, so use r05_v_total_adj
+               max_scan_line = r05_v_total_adj - 1;
+               // If interlaced, the odd field contains an additional scan line
+               if (odd_field)
+                 if (r08_interlace[1:0] == 2'b11)
+                   max_scan_line = max_scan_line + 2;
+                 else
+                   max_scan_line = max_scan_line + 1;
+            end
+            // In interlace sync + video mode mask off the LSb of the
+            // max scan line address
+            if (r08_interlace[1:0] == 2'b11)
+              max_scan_line[0] = 1'b0;
+
+            if ((line_counter == max_scan_line) & ((!need_adj & row_counter == r04_v_total) | in_adj)) begin
 
                //  Next character row
                //  FIXME: No support for v_total_adj yet
@@ -422,9 +432,12 @@ module mc6845
                row_counter <= 'd0;
 
                // Increment field counter
-               field_counter <= field_counter + 1;
+                field_counter <= field_counter + 1;
 
-            end else if (line_counter == max_scan_line) begin
+               // Reset the in extra time flag
+               in_adj = 1'b0;
+
+            end else if (!in_adj & (line_counter == max_scan_line)) begin
                // Scan line counter increments, wrapping at max_scan_line_addr
                // Next character row
                line_counter <= 'd0;
@@ -432,9 +445,13 @@ module mc6845
                // increased by h_displayed and the row counter is incremented
                ma_row_start = ma_row_start + r01_h_displayed;
                row_counter <= row_counter + 1;
-              //  Next scan line.  Count in twos in interlaced sync+video mode
+               // Test if we are entering the adjust phase, and set
+               // in_adj accordingly
+               if (row_counter == r04_v_total & need_adj)
+                 in_adj = 1'b1;
             end
             else begin
+              //  Next scan line.  Count in twos in interlaced sync+video mode
                if (r08_interlace[1:0] === 2'b 11) begin
                   line_counter <= line_counter + 2;
                   line_counter[0] <= 1'b 0;
