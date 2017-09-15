@@ -118,6 +118,7 @@ module beeb
    wire caps_lock_led_n;
    wire shift_lock_led_n;
    wire break_led_n;
+   reg  rgb_mode = 0;
 
    reg        led1;
    reg        led2;
@@ -126,10 +127,10 @@ module beeb
 
    always @(posedge clock32)
      begin
-        led1 <= !caps_lock_led_n;  // blue
-        led2 <= !shift_lock_led_n; // green
-        led3 <= !break_led_n;      // yellow
-        led4 <= !sw4;              // red
+        led4 <= !caps_lock_led_n;  // red
+        led3 <= !shift_lock_led_n; // yellow
+        led2 <= !break_led_n;      // green
+        led1 <= rgb_mode;          // blue
      end
 
    // ===============================================================
@@ -294,17 +295,22 @@ module beeb
    wire [5:0] vga_g;
    wire [5:0] vga_b;
 
-//   assign red   = {r, r, r, r};
-//   assign green = {g, g, g, g};
-//   assign blue  = {b, b, b, b};
-//   assign hsync = !(vs | hs);
-//   assign vsync = 1'b0;
+   reg [24:0] sw4_counter = 0;
 
-   assign red   = vga_r[5:2];
-   assign green = vga_g[5:2];
-   assign blue  = vga_b[5:2];
-   assign hsync = vga_hs;
-   assign vsync = vga_vs;
+   always @(posedge clock32) begin
+      if (!sw4)
+        sw4_counter <= sw4_counter + 1;
+      else
+        sw4_counter <= 0;
+      if (sw4_counter == 32*1000*1000) // 1s
+        rgb_mode = !rgb_mode;
+   end
+
+   assign red   = rgb_mode ? {4{r}}     : vga_r[5:2];
+   assign green = rgb_mode ? {4{g}}     : vga_g[5:2];
+   assign blue  = rgb_mode ? {4{b}}     : vga_b[5:2];
+   assign hsync = rgb_mode ? !(vs | hs) : vga_hs;
+   assign vsync = rgb_mode ? 1'b0       : vga_vs;
 
 mist_scandoubler SD
 (
