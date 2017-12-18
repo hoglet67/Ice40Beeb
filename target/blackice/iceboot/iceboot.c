@@ -522,7 +522,9 @@ setup(void)
 	uint8_t blver;
 	char blverstr[3];
  
-	disable_mux_out();
+	// disable_mux_out();
+	select_rpi();
+	enable_mux_out();
 	spi_detach();
 	status_led_low();
 	memp = (uint8_t*)FLASH_ICE40_START;
@@ -587,7 +589,9 @@ loop(void)
 		fifo_get(&in_fifo, &b);
 	} while (b != 0x7E);
 	status_led_high();
-	disable_mux_out();
+	// disable_mux_out();
+	select_rpi();
+	enable_mux_out();
 	gpio_low(ICE40_CRST);
 	spi_reattach();
 	err = ice40_reset();
@@ -604,6 +608,7 @@ loop(void)
 	if (!err)
 		send_beeb_roms();
 	spi_detach();
+	select_leds();
 	enable_mux_out();
 	status_led_low();
 }
